@@ -32,9 +32,11 @@ class GigaChatClient(private val config: AppConfig) {
         }
 
         install(ContentNegotiation) {
+            @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
             json(Json {
                 ignoreUnknownKeys = true
                 prettyPrint = false
+                explicitNulls = false
             })
         }
 
@@ -82,7 +84,10 @@ class GigaChatClient(private val config: AppConfig) {
         return true
     }
 
-    suspend fun sendChatRequest(messages: List<Message>): Result<ChatResponse> {
+    suspend fun sendChatRequest(
+        messages: List<Message>,
+        functions: List<FunctionDefinition>? = null
+    ): Result<ChatResponse> {
         if (!ensureValidToken()) {
             return Result.failure(Exception("Не удалось получить токен авторизации"))
         }
@@ -92,7 +97,8 @@ class GigaChatClient(private val config: AppConfig) {
                 model = config.model,
                 messages = messages,
                 temperature = config.temperature,
-                max_tokens = config.max_tokens
+                max_tokens = config.max_tokens,
+                functions = functions
             )
 
             val response: HttpResponse = client.post("https://gigachat.devices.sberbank.ru/api/v1/chat/completions") {
@@ -108,7 +114,7 @@ class GigaChatClient(private val config: AppConfig) {
                 }
                 response.status.value == 401 -> {
                     if (refreshToken()) {
-                        sendChatRequest(messages)
+                        sendChatRequest(messages, functions)
                     } else {
                         Result.failure(Exception("Ошибка авторизации: проверьте credentials_key"))
                     }
