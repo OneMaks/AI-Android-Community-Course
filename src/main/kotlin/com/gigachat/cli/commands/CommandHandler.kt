@@ -32,6 +32,8 @@ class CommandHandler(
             "/temp" -> handleTemp(args)
             "/tokens" -> handleTokens(args)
             "/system" -> handleSystem(args)
+            "/json" -> handleJson(args)
+            "/function_date" -> handleFunctionDate(args)
             "/set" -> handleSet(args)
             else -> CommandResult.Message("Неизвестная команда. Введите /help.")
         }
@@ -57,6 +59,8 @@ class CommandHandler(
   /tokens <n>        - Установить лимит токенов (1-32768)
   /system <text>     - Установить системный промпт
   /system off        - Отключить системный промпт
+  /json true/false   - Включить/выключить режим структурированного JSON-вывода
+  /function_date true/false - Включить/выключить function calling для текущей даты/времени
   /set save          - Сохранить настройки в config.json
   /set reset         - Сбросить настройки к значениям из config.json
         """.trimIndent()
@@ -74,6 +78,8 @@ class CommandHandler(
   max_tokens: ${sessionConfig.maxTokens}
   system_prompt: ${if (sessionConfig.systemPrompt.isBlank()) "<не задан>" else "\"${sessionConfig.systemPrompt}\""}
   scope: ${sessionConfig.scope}
+  json_mode: ${sessionConfig.jsonMode}
+  function_date: ${sessionConfig.functionDate}
         """.trimIndent()
 
         return CommandResult.Message(config)
@@ -214,6 +220,36 @@ class CommandHandler(
         return CommandResult.Message("[Настройка применена] system_prompt = \"$args\"")
     }
 
+    private fun handleJson(args: String): CommandResult {
+        return when (args.trim().lowercase()) {
+            "true" -> {
+                sessionConfig = sessionConfig.copy(jsonMode = true)
+                CommandResult.Message("[Настройка применена] json_mode = true")
+            }
+            "false" -> {
+                sessionConfig = sessionConfig.copy(jsonMode = false)
+                CommandResult.Message("[Настройка применена] json_mode = false")
+            }
+            "" -> CommandResult.Message("[JSON режим: ${if (sessionConfig.jsonMode) "включён" else "выключен"}]")
+            else -> CommandResult.Message("[Ошибка: используйте /json true или /json false]")
+        }
+    }
+
+    private fun handleFunctionDate(args: String): CommandResult {
+        return when (args.trim().lowercase()) {
+            "true" -> {
+                sessionConfig = sessionConfig.copy(functionDate = true)
+                CommandResult.Message("[Настройка применена] function_date = true")
+            }
+            "false" -> {
+                sessionConfig = sessionConfig.copy(functionDate = false)
+                CommandResult.Message("[Настройка применена] function_date = false")
+            }
+            "" -> CommandResult.Message("[function_date: ${if (sessionConfig.functionDate) "включён" else "выключен"}]")
+            else -> CommandResult.Message("[Ошибка: используйте /function_date true или /function_date false]")
+        }
+    }
+
     private fun handleSet(args: String): CommandResult {
         return when (args.trim().lowercase()) {
             "save" -> {
@@ -256,7 +292,9 @@ data class SessionConfig(
     val temperature: Float,
     val maxTokens: Int,
     val systemPrompt: String,
-    val scope: String
+    val scope: String,
+    val jsonMode: Boolean = false,
+    val functionDate: Boolean = false
 ) {
     companion object {
         fun fromAppConfig(config: AppConfig): SessionConfig {
